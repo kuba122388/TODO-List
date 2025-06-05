@@ -21,7 +21,8 @@ data class MyColors(
     val attachment : Color,
     val onTaskText : Color,
 
-    val onButtons: Color
+    val onButtons: Color,
+    val saveButton: Color
 )
 
 val DefaultTODOListColors = MyColors(
@@ -40,7 +41,8 @@ val DefaultTODOListColors = MyColors(
     attachment = Attachment,
     onTaskText = OnTaskText,
 
-    onButtons = OnButtons
+    onButtons = OnButtons,
+    saveButton = SaveButton
 )
 
 val LocalTODOListColors = staticCompositionLocalOf{ DefaultTODOListColors }

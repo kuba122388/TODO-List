@@ -1,5 +1,3 @@
-package com.example.todo_list.ui.components
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,7 +28,7 @@ import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
 
 @Composable
-fun TopBar(text: String, id: Int, navController: NavController, destination: String) {
+fun TopBarPopUp(text: String, id: Int, action: () -> Unit) {
     val myColors = TODOListTheme.colors
     Row {
         Column(
@@ -55,7 +53,11 @@ fun TopBar(text: String, id: Int, navController: NavController, destination: Str
                         fontFamily = OswaldFontFamily,
                         maxLines = 1
                     )
-                    HorizontalDivider(color = Color.Black, thickness = 2.dp)
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                        color = Color.Black,
+                        thickness = 2.dp
+                    )
                 }
 
                 Box(
@@ -63,10 +65,7 @@ fun TopBar(text: String, id: Int, navController: NavController, destination: Str
                         .clip(RoundedCornerShape(Dimens.roundedSize))
                         .background(myColors.controlBackground)
                         .size(55.dp)
-                        .clickable {
-                            if (destination == "BACK") navController.popBackStack()
-                            else navController.navigate(destination)
-                        },
+                        .clickable { action() },
                     contentAlignment = Alignment.Center
                 ) {
                     Image(

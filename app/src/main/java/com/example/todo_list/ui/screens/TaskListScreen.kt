@@ -1,5 +1,7 @@
 package com.example.todo_list.ui.screens
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,22 +9,17 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,33 +27,35 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
+import com.example.todo_list.navigation.Routes
 import com.example.todo_list.ui.components.SearchModule
 import com.example.todo_list.ui.components.TaskCard
 import com.example.todo_list.ui.components.TopBar
 import com.example.todo_list.ui.theme.Dimens
-import com.example.todo_list.ui.theme.OpenSansCondensed
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
+import java.text.SimpleDateFormat
 import java.time.LocalDateTime
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
 fun TaskListScreen(navController: NavController) {
@@ -65,10 +64,15 @@ fun TaskListScreen(navController: NavController) {
 
     val listState = rememberLazyListState()
 
-    var filterByCategory by remember { mutableStateOf("as") }
-    var addButtonExpanded by remember { mutableStateOf(true) }
+    var selectedCategory by remember { mutableStateOf("") }
+    var addButtonExpanded by remember { mutableStateOf(false) }
 
+    var showCategoryDialog by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
     var showTaskDialog by remember { mutableStateOf(false) }
+
+    val categoryList = remember { mutableStateListOf<Category>() }
+
 
     val sampleTasks = listOf(
         Task(
@@ -103,12 +107,24 @@ fun TaskListScreen(navController: NavController) {
             description = "Nie siedź przy kompie",
             creationDate = LocalDateTime.now(),
             destinationDate = LocalDateTime.now().plusDays(1),
-            category = Category("Dom", Color(0xFF4CAF50)),
+            category = null,
             notification = false,
             attachments = listOf()
         ),
     )
 
+    sampleTasks.forEach { task ->
+        if (task.category != null && !categoryList.contains(task.category)) {
+            categoryList.add(task.category)
+        }
+    }
+
+    val filteredTasks =
+        sampleTasks.filter { task ->
+            (selectedCategory.isEmpty() || task.category?.Title == selectedCategory) &&
+                    (searchText.isEmpty() || task.title.lowercase()
+                        .contains(searchText.lowercase()))
+        }
 
     Column(
         modifier = Modifier
@@ -120,9 +136,12 @@ fun TaskListScreen(navController: NavController) {
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        TopBar()
-
-        Spacer(Modifier.size(Dimens.smallPadding))
+        TopBar(
+            text = "Welcome, Jacob!",
+            id = R.drawable.settings,
+            navController = navController,
+            destination = Routes.Settings.route
+        )
 
         SearchModule(searchText = searchText, onSearchChange = { searchText = it })
 
@@ -133,7 +152,9 @@ fun TaskListScreen(navController: NavController) {
             state = listState,
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingTasks)
         ) {
-            itemsIndexed(sampleTasks, key = { index, task -> task.title + index }) { index, task ->
+            itemsIndexed(
+                filteredTasks,
+                key = { index, task -> task.title + index }) { index, task ->
                 var selected by remember { mutableStateOf(false) }
                 var expanded by remember { mutableStateOf(false) }
 
@@ -157,18 +178,91 @@ fun TaskListScreen(navController: NavController) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            FilterButtons(filterByCategory) { filterByCategory = "" }
+            FilterButtons(
+                selectedCategory,
+                clearFilter = { selectedCategory = "" },
+                showFilterDialog = { showFilterDialog = true })
 
             Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
 
-            AddButtons(addButtonExpanded) { addButtonExpanded = !addButtonExpanded }
+            AddButtons(
+                addButtonExpanded,
+                onTogglePlus = { addButtonExpanded = !addButtonExpanded },
+                onToggleTask = { showTaskDialog = true; addButtonExpanded = false },
+                onToggleCategory = { showCategoryDialog = true; addButtonExpanded = false })
+
+            if (showFilterDialog) {
+                FilterDialog(
+                    categoryList,
+                    dismiss = { showFilterDialog = false },
+                    changeCategory = { selectedCategory = it }
+                )
+            }
+
+            if (showCategoryDialog) {
+                CategoryDialog(dismiss = { showCategoryDialog = false })
+            }
+
+            if (showTaskDialog) {
+                TaskDialog(dismiss = { showTaskDialog = false }, categoryList = categoryList)
+            }
+
         }
     }
 }
 
+
+
 @Composable
-fun FilterButtons(filter: String, clearFilter: () -> Unit) {
+fun DateTimePickerSample() {
+    val context = LocalContext.current
+    val calendar = remember { Calendar.getInstance() }
+
+    var dateTimeText by remember { mutableStateOf("Click here to set") }
+
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            calendar.set(Calendar.YEAR, year)
+            calendar.set(Calendar.MONTH, month)
+            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+            TimePickerDialog(
+                context,
+                { _, hourOfDay, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    calendar.set(Calendar.MINUTE, minute)
+
+                    val formatted = SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm",
+                        Locale.getDefault()
+                    ).format(calendar.time)
+                    dateTimeText = formatted
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                true
+            ).show()
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+
+    Text(text = dateTimeText, modifier = Modifier
+        .clickable {
+            datePickerDialog.show()
+        })
+
+}
+
+
+@Composable
+fun FilterButtons(filter: String, clearFilter: () -> Unit, showFilterDialog: () -> Unit) {
     ActionButton(
+        modifier = Modifier.clickable {
+            showFilterDialog()
+        },
         id = R.drawable.filter,
         buttonSize = Dimens.actionBtnSize,
         imgSize = 24.dp
@@ -184,63 +278,23 @@ fun FilterButtons(filter: String, clearFilter: () -> Unit) {
 }
 
 @Composable
-fun AddButtons(addButtonExpanded: Boolean, onToggle: () -> Unit) {
-    if (addButtonExpanded) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                modifier = Modifier.alpha(0f),
-                text = "Task",
-                fontSize = Dimens.fontUnderBtn,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Light
-            )
-            Spacer(Modifier.size(3.dp))
-            ActionButton(
-                id = R.drawable.task,
-                buttonSize = Dimens.actionOptBtnSize,
-                imgSize = 20.dp
-            )
-            Spacer(Modifier.size(3.dp))
-            Text(
-                text = "Task",
-                fontSize = Dimens.fontUnderBtn,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Light
-            )
-        }
+fun AddButtons(
+    addButtonExpanded: Boolean,
+    onTogglePlus: () -> Unit,
+    onToggleTask: () -> Unit,
+    onToggleCategory: () -> Unit
+) {
+    if (addButtonExpanded) SingleButton(text = "Task", R.drawable.task) { onToggleTask() }
+    else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
 
-    } else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
-    if (addButtonExpanded) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                modifier = Modifier.alpha(0f),
-                text = "Category",
-                fontSize = Dimens.fontUnderBtn,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Light
-            )
-            Spacer(Modifier.size(3.dp))
-            ActionButton(
-                id = R.drawable.category,
-                buttonSize = Dimens.actionOptBtnSize,
-                imgSize = 20.dp
-            )
-            Spacer(Modifier.size(3.dp))
-            Text(
-                text = "Category",
-                fontSize = Dimens.fontUnderBtn,
-                fontFamily = OswaldFontFamily,
-                fontWeight = FontWeight.Light
-            )
-        }
-    } else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
+    if (addButtonExpanded) SingleButton(
+        text = "Category",
+        R.drawable.category,
+    ) { onToggleCategory() }
+    else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
 
     ActionButton(
-        modifier = Modifier.clickable { onToggle() },
+        modifier = Modifier.clickable { onTogglePlus() },
         id = R.drawable.plus,
         buttonSize = Dimens.actionBtnSize,
         imgSize = 30.dp
@@ -248,7 +302,41 @@ fun AddButtons(addButtonExpanded: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-fun ActionButton(id: Int, buttonSize: Dp, imgSize: Dp, modifier: Modifier = Modifier) {
+fun SingleButton(text: String, id: Int, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            modifier = Modifier.alpha(0f),
+            text = text,
+            fontSize = Dimens.fontUnderBtn,
+            fontFamily = OswaldFontFamily,
+            fontWeight = FontWeight.Light
+        )
+        Spacer(Modifier.size(3.dp))
+        ActionButton(
+            modifier = Modifier.clickable { onClick() },
+            id = id,
+            buttonSize = Dimens.actionOptBtnSize,
+            imgSize = 20.dp
+        )
+        Spacer(Modifier.size(3.dp))
+        Text(
+            text = text,
+            fontSize = Dimens.fontUnderBtn,
+            fontFamily = OswaldFontFamily,
+            fontWeight = FontWeight.Light
+        )
+    }
+}
+
+@Composable
+fun ActionButton(
+    id: Int,
+    buttonSize: Dp,
+    imgSize: Dp,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier
             .shadow(elevation = 2.dp, shape = CircleShape, clip = false)
@@ -266,222 +354,4 @@ fun ActionButton(id: Int, buttonSize: Dp, imgSize: Dp, modifier: Modifier = Modi
     }
 }
 
-@Composable
-fun InsideTaskButtons() {
-    Box(
-        modifier = Modifier
-            .width(80.dp)
-            .clip(RoundedCornerShape(Dimens.roundedSize))
-            .background(TODOListTheme.colors.taskButtons)
-            .padding(
-                horizontal = Dimens.smallPadding,
-                vertical = Dimens.tinyPadding
-            )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Image(
-                modifier = Modifier.size(Dimens.imgSize),
-                painter = painterResource(id = R.drawable.edit),
-                contentDescription = null
-            )
-            Spacer(Modifier.size(Dimens.tinyPadding))
-            Text(
-                "Edit",
-                color = TODOListTheme.colors.onTaskText,
-                fontFamily = OpenSansCondensed,
-                fontWeight = FontWeight.Light,
-                fontSize = Dimens.fontTiny
-            )
-            Spacer(Modifier.size(Dimens.smallPadding))
-        }
-    }
-    Spacer(modifier = Modifier.size(10.dp))
-    Box(
-        modifier = Modifier
-            .width(80.dp)
-            .clip(RoundedCornerShape(Dimens.roundedSize))
-            .background(TODOListTheme.colors.taskButtons)
-            .padding(
-                horizontal = Dimens.smallPadding,
-                vertical = Dimens.tinyPadding
-            )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Image(
-                modifier = Modifier.size(Dimens.imgSize),
-                painter = painterResource(id = R.drawable.edit),
-                contentDescription = null
-            )
-            Spacer(Modifier.size(Dimens.tinyPadding))
 
-            Text(
-                "Delete",
-                color = TODOListTheme.colors.onTaskText,
-                fontFamily = OpenSansCondensed,
-                fontWeight = FontWeight.Light,
-                fontSize = Dimens.fontTiny
-            )
-            Spacer(Modifier.size(Dimens.smallPadding))
-        }
-    }
-}
-
-
-@Composable
-fun TaskContent(task: Task, expanded: Boolean) {
-    if (expanded) {
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.65f)
-                .padding(start = 2.dp)
-        ) {
-            Text(
-                task.description,
-                color = TODOListTheme.colors.onTaskText,
-                fontFamily = OpenSansCondensed,
-                fontWeight = FontWeight.Light,
-            )
-        }
-        Spacer(modifier = Modifier.size(10.dp))
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            task.attachments.forEach { attachment ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Image(
-                        modifier = Modifier.size(Dimens.imgSize),
-                        painter = painterResource(id = R.drawable.attachment),
-                        contentDescription = null,
-                    )
-                    Text(
-                        attachment,
-                        color = TODOListTheme.colors.onTaskText,
-                        fontFamily = OpenSansCondensed,
-                        fontWeight = FontWeight.Light,
-                        textDecoration = TextDecoration.Underline
-                    )
-
-                }
-                Spacer(modifier = Modifier.size(Dimens.tinyPadding))
-            }
-        }
-        Spacer(modifier = Modifier.size(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row { InsideTaskButtons() }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(Dimens.roundedSize))
-                    .background(
-                        if (task.category != null)
-                            task.category.Color
-                                .copy(alpha = 0.9f)
-                                .compositeOver(Color.Black.copy(alpha = 1f))
-                        else TODOListTheme.colors.taskButtons
-                    )
-                    .padding(
-                        horizontal = Dimens.mediumPadding,
-                        vertical = Dimens.tinyPadding
-                    )
-            ) {
-                task.category?.let {
-                    Text(
-                        it.Title,
-                        color = TODOListTheme.colors.onTaskText,
-                        fontFamily = OpenSansCondensed
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TaskHeaderRow(
-    task: Task,
-    selected: Boolean,
-    expanded: Boolean,
-    onSelectToggle: () -> Unit,
-    onExpandToggle: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .height(IntrinsicSize.Min)
-            .clickable { onExpandToggle() }
-            .padding(bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Spacer(modifier = Modifier.size(2.dp))
-            CustomRadioButton(
-                selected = selected,
-                onClick = onSelectToggle
-            )
-        }
-
-        Spacer(Modifier.size(Dimens.smallPadding))
-
-        Text(
-            task.title,
-            color = TODOListTheme.colors.onTaskText,
-            fontFamily = OpenSansCondensed,
-            fontWeight = FontWeight.Light,
-            fontSize = Dimens.fontSmall,
-            modifier = Modifier.weight(1f)
-        )
-
-        ExpandButton(expanded = expanded)
-    }
-}
-
-
-@Composable
-fun CustomRadioButton(
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val icon =
-        if (selected) painterResource(id = R.drawable.radio_button_filled)
-        else painterResource(id = R.drawable.radio_button_unfilled)
-
-
-    Icon(
-        painter = icon,
-        contentDescription = null,
-        tint = Color.Unspecified,
-        modifier = Modifier
-            .size(Dimens.radioBtnSize)
-            .clickable(onClick = onClick)
-    )
-}
-
-@Composable
-fun ExpandButton(
-    expanded: Boolean
-) {
-    val icon = painterResource(id = R.drawable.expand_white)
-
-    Icon(
-        painter = icon,
-        contentDescription = null,
-        tint = Color.Unspecified,
-        modifier = Modifier
-            .size(Dimens.radioBtnSize)
-            .rotate(if (expanded) 180f else 0f)
-    )
-}
