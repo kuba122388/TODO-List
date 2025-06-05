@@ -17,7 +17,9 @@ val OnSearchBar = Color(0x80FFFFFF)
 
 val TaskWOCategory = Color(0xC06B6B6B)
 val TaskButtons = Color(0x14000000)
+
 val OnTaskText = Color(0xFFFFFFFF)
+val OnButtons = Color(0xFFFFFFFF)
 
 // NOTE: Add Task Screen
 val Attachment = Color(0x80000000)

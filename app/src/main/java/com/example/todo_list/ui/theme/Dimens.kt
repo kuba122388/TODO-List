@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 object Dimens{
+    val fontUnderBtn = 12.sp
     val fontTiny = 16.sp
     val fontSmall = 20.sp
     val fontMedium = 24.sp
@@ -18,10 +19,14 @@ object Dimens{
 
     val roundedSize = 10.dp
 
-    val spacingTasks = 20.dp
+    val spacingTasks = 10.dp
     val spacingInTasks = 5.dp
 
     val imgSize = 14.dp
     val radioBtnSize = 18.dp
     val expandBtnSize = 18.dp
+
+    val actionBtnSize = 50.dp
+    val actionOptBtnSize = 42.dp
+
 }

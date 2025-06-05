@@ -17,14 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,49 +29,62 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
+import com.example.todo_list.ui.components.SearchModule
+import com.example.todo_list.ui.components.TaskCard
+import com.example.todo_list.ui.components.TopBar
 import com.example.todo_list.ui.theme.Dimens
-import com.example.todo_list.ui.theme.InputFieldInactive
-import com.example.todo_list.ui.theme.OnSearchBar
+import com.example.todo_list.ui.theme.OpenSansCondensed
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
-import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Composable
 fun TaskListScreen(navController: NavController) {
     var searchText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
+    val listState = rememberLazyListState()
+
+    var filterByCategory by remember { mutableStateOf("as") }
+    var addButtonExpanded by remember { mutableStateOf(true) }
+
+    var showTaskDialog by remember { mutableStateOf(false) }
+
     val sampleTasks = listOf(
         Task(
             title = "Zrobić zakupy",
             description = "Mleko, chleb, jajka",
-            creationDate = LocalDate.now(),
-            destinationDate = LocalDate.now().plusDays(1),
+            creationDate = LocalDateTime.now(),
+            destinationDate = LocalDateTime.now().plusDays(1),
             category = Category("Dom", Color(0xFF4CAF50)),
             notification = true,
             attachments = listOf()
         ),
         Task(
             title = "Spotkanie projektowe",
-            description = "Omawiamy sprint 5",
-            creationDate = LocalDate.now(),
-            destinationDate = LocalDate.now().plusDays(2),
+            description = "Omawiamy sprint 5asdasdsadsdasdaasdsdasdadsdsadasasdsdasdasda",
+            creationDate = LocalDateTime.now(),
+            destinationDate = LocalDateTime.now().plusDays(2).plusHours(5),
             category = Category("Praca", Color(0xFF2196F3)),
             notification = false,
             attachments = listOf("sciezka/do/plik1.pdf")
@@ -82,12 +92,21 @@ fun TaskListScreen(navController: NavController) {
         Task(
             title = "Trening",
             description = "Siłownia o 19:00",
-            creationDate = LocalDate.now(),
-            destinationDate = LocalDate.now().plusDays(1),
+            creationDate = LocalDateTime.now(),
+            destinationDate = LocalDateTime.now().plusDays(1),
             category = Category("Zdrowie", Color(0xFFFF5722)),
             notification = true,
             attachments = listOf("zdjecie1.jpg", "zdjecie2.jpg")
-        )
+        ),
+        Task(
+            title = "Wyjść na dwór",
+            description = "Nie siedź przy kompie",
+            creationDate = LocalDateTime.now(),
+            destinationDate = LocalDateTime.now().plusDays(1),
+            category = Category("Dom", Color(0xFF4CAF50)),
+            notification = false,
+            attachments = listOf()
+        ),
     )
 
 
@@ -107,217 +126,286 @@ fun TaskListScreen(navController: NavController) {
 
         SearchModule(searchText = searchText, onSearchChange = { searchText = it })
 
-        Spacer(Modifier.size(Dimens.smallPadding))
+        Spacer(Modifier.size(Dimens.mediumPadding))
 
         LazyColumn(
+            modifier = Modifier.fillMaxHeight(0.82f),
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingTasks)
         ) {
-            items(sampleTasks) { task ->
+            itemsIndexed(sampleTasks, key = { index, task -> task.title + index }) { index, task ->
                 var selected by remember { mutableStateOf(false) }
                 var expanded by remember { mutableStateOf(false) }
 
-                Box(
-                    modifier = Modifier
-                        .height(100.dp)
-                        .clip(RoundedCornerShape(Dimens.roundedSize))
-                        .background(TODOListTheme.colors.taskWOCategory)
-                        .padding(horizontal = Dimens.smallPadding, vertical = Dimens.smallPadding)
-                ) {
-                    Column {
-                        TopTaskInfo()
-                        Spacer(modifier = Modifier.size(Dimens.tinyPadding))
-                        TaskHeaderRow(
-                            task = task,
-                            selected = selected,
-                            expanded = expanded,
-                            onSelectToggle = { selected = !selected },
-                            onExpandToggle = { expanded = !expanded })
+                LaunchedEffect(expanded) {
+                    if (expanded) {
+                        listState.animateScrollToItem(index)
                     }
                 }
+
+                TaskCard(
+                    task = task,
+                    selected = selected,
+                    expanded = expanded,
+                    onSelectedToggle = { selected = !selected },
+                    onExpandedToggle = { expanded = !expanded }
+                )
             }
         }
-    }
-}
-
-@Composable
-fun TopBar() {
-    val myColors = TODOListTheme.colors
-    Row {
-        Column(
-            modifier = Modifier.wrapContentHeight()
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Spacer(Modifier)
-                    Text(
-                        "Welcome, Jacob!",
-                        fontSize = Dimens.fontBig,
-                        fontFamily = OswaldFontFamily.Oswald,
-                        maxLines = 1
-                    )
-                    HorizontalDivider(color = Color.Black, thickness = 2.dp)
-                }
+            FilterButtons(filterByCategory) { filterByCategory = "" }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(Dimens.roundedSize))
-                        .background(myColors.controlBackground)
-                        .padding(all = Dimens.insidePadding)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.settings),
-                        contentDescription = null
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
+
+            AddButtons(addButtonExpanded) { addButtonExpanded = !addButtonExpanded }
         }
     }
 }
 
 @Composable
-fun SearchModule(searchText: String, onSearchChange: (String) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+fun FilterButtons(filter: String, clearFilter: () -> Unit) {
+    ActionButton(
+        id = R.drawable.filter,
+        buttonSize = Dimens.actionBtnSize,
+        imgSize = 24.dp
+    )
+    if (filter.isNotEmpty()) ActionButton(
+        modifier = Modifier.clickable {
+            clearFilter()
+        },
+        id = R.drawable.close,
+        buttonSize = Dimens.actionOptBtnSize,
+        imgSize = 20.dp
+    ) else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
+}
+
+@Composable
+fun AddButtons(addButtonExpanded: Boolean, onToggle: () -> Unit) {
+    if (addButtonExpanded) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                modifier = Modifier.alpha(0f),
+                text = "Task",
+                fontSize = Dimens.fontTiny,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Light
+            )
+            Spacer(Modifier.size(3.dp))
+            ActionButton(
+                id = R.drawable.task,
+                buttonSize = Dimens.actionOptBtnSize,
+                imgSize = 20.dp
+            )
+            Spacer(Modifier.size(3.dp))
+            Text(
+                text = "Task",
+                fontSize = Dimens.fontUnderBtn,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Light
+            )
+        }
+
+    } else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
+    if (addButtonExpanded) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                modifier = Modifier.alpha(0f),
+                text = "Category",
+                fontSize = Dimens.fontTiny,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Light
+            )
+            Spacer(Modifier.size(3.dp))
+            ActionButton(
+                id = R.drawable.category,
+                buttonSize = Dimens.actionOptBtnSize,
+                imgSize = 20.dp
+            )
+            Spacer(Modifier.size(3.dp))
+            Text(
+                text = "Category",
+                fontSize = Dimens.fontUnderBtn,
+                fontFamily = OswaldFontFamily,
+                fontWeight = FontWeight.Light
+            )
+        }
+    } else Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
+
+    ActionButton(
+        modifier = Modifier.clickable { onToggle() },
+        id = R.drawable.plus,
+        buttonSize = Dimens.actionBtnSize,
+        imgSize = 30.dp
+    )
+}
+
+@Composable
+fun ActionButton(id: Int, buttonSize: Dp, imgSize: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .shadow(elevation = 2.dp, shape = CircleShape, clip = false)
+            .clip(CircleShape)
+            .background(color = TODOListTheme.colors.onButtons)
+            .height(buttonSize)
+            .width(buttonSize),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            "Find your task",
-            fontSize = Dimens.fontMedium,
-            fontFamily = OswaldFontFamily.Oswald,
-            fontWeight = FontWeight.Light,
-            maxLines = 1,
-            letterSpacing = 1.sp
+        Image(
+            modifier = Modifier.size(imgSize),
+            painter = painterResource(id = id),
+            contentDescription = null
         )
-        Spacer(Modifier.size(Dimens.tinyPadding))
-        CustomSearchBar(query = searchText, onQueryChange = onSearchChange)
     }
 }
 
 @Composable
-fun CustomSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
+fun InsideTaskButtons() {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
+            .width(80.dp)
             .clip(RoundedCornerShape(Dimens.roundedSize))
-            .background(InputFieldInactive)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .background(TODOListTheme.colors.taskButtons)
+            .padding(
+                horizontal = Dimens.smallPadding,
+                vertical = Dimens.tinyPadding
+            )
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = OnSearchBar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Image(
+                modifier = Modifier.size(Dimens.imgSize),
+                painter = painterResource(id = R.drawable.edit),
+                contentDescription = null
             )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = TextStyle(
-                    fontSize = 16.sp,
-                    fontFamily = OswaldFontFamily.Oswald,
-                    fontWeight = FontWeight.Light,
-                    color = OnSearchBar
-                ),
-                modifier = Modifier.weight(1f),
-                decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            "What are we looking for? :)",
-                            fontSize = Dimens.fontTiny,
-                            fontFamily = OswaldFontFamily.Oswald,
-                            fontWeight = FontWeight.Light,
-                            color = OnSearchBar,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                    innerTextField()
-                }
+            Spacer(Modifier.size(Dimens.tinyPadding))
+            Text(
+                "Edit",
+                color = TODOListTheme.colors.onTaskText,
+                fontFamily = OpenSansCondensed,
+                fontWeight = FontWeight.Light,
+                fontSize = Dimens.fontTiny
             )
+            Spacer(Modifier.size(Dimens.smallPadding))
+        }
+    }
+    Spacer(modifier = Modifier.size(10.dp))
+    Box(
+        modifier = Modifier
+            .width(80.dp)
+            .clip(RoundedCornerShape(Dimens.roundedSize))
+            .background(TODOListTheme.colors.taskButtons)
+            .padding(
+                horizontal = Dimens.smallPadding,
+                vertical = Dimens.tinyPadding
+            )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Image(
+                modifier = Modifier.size(Dimens.imgSize),
+                painter = painterResource(id = R.drawable.edit),
+                contentDescription = null
+            )
+            Spacer(Modifier.size(Dimens.tinyPadding))
+
+            Text(
+                "Delete",
+                color = TODOListTheme.colors.onTaskText,
+                fontFamily = OpenSansCondensed,
+                fontWeight = FontWeight.Light,
+                fontSize = Dimens.fontTiny
+            )
+            Spacer(Modifier.size(Dimens.smallPadding))
         }
     }
 }
 
+
 @Composable
-private fun TopTaskInfo() {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Box {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+fun TaskContent(task: Task, expanded: Boolean) {
+    if (expanded) {
 
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.65f)
+                .padding(start = 2.dp)
+        ) {
+            Text(
+                task.description,
+                color = TODOListTheme.colors.onTaskText,
+                fontFamily = OpenSansCondensed,
+                fontWeight = FontWeight.Light,
+            )
+        }
+        Spacer(modifier = Modifier.size(10.dp))
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            task.attachments.forEach { attachment ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Image(
-                        modifier = Modifier.size(Dimens.imgSize),
-                        painter = painterResource(id = R.drawable.create),
-                        contentDescription = null,
-                    )
-                    Spacer(modifier = Modifier.size(Dimens.tinyPadding))
-                    Text(
-                        "25.05.2025 2:35PM",
-                        color = TODOListTheme.colors.onTaskText,
-                        fontFamily = OswaldFontFamily.Oswald,
-                        fontWeight = FontWeight.Light
-                    )
-                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        modifier = Modifier.size(Dimens.imgSize),
-                        painter = painterResource(id = R.drawable.target),
-                        contentDescription = null,
-                    )
-                    Spacer(modifier = Modifier.size(Dimens.tinyPadding))
-                    Text(
-                        "25.05.2025 2:35PM",
-                        color = TODOListTheme.colors.onTaskText,
-                        fontFamily = OswaldFontFamily.Oswald,
-                        fontWeight = FontWeight.Light
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     Image(
                         modifier = Modifier.size(Dimens.imgSize),
                         painter = painterResource(id = R.drawable.attachment),
                         contentDescription = null,
                     )
                     Text(
-                        "3",
+                        attachment,
                         color = TODOListTheme.colors.onTaskText,
-                        fontFamily = OswaldFontFamily.Oswald,
-                        fontWeight = FontWeight.Light
+                        fontFamily = OpenSansCondensed,
+                        fontWeight = FontWeight.Light,
+                        textDecoration = TextDecoration.Underline
+                    )
+
+                }
+                Spacer(modifier = Modifier.size(Dimens.tinyPadding))
+            }
+        }
+        Spacer(modifier = Modifier.size(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row { InsideTaskButtons() }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Dimens.roundedSize))
+                    .background(
+                        if (task.category != null)
+                            task.category.Color
+                                .copy(alpha = 0.9f)
+                                .compositeOver(Color.Black.copy(alpha = 1f))
+                        else TODOListTheme.colors.taskButtons
+                    )
+                    .padding(
+                        horizontal = Dimens.mediumPadding,
+                        vertical = Dimens.tinyPadding
+                    )
+            ) {
+                task.category?.let {
+                    Text(
+                        it.Title,
+                        color = TODOListTheme.colors.onTaskText,
+                        fontFamily = OpenSansCondensed
                     )
                 }
-
-                Image(
-                    modifier = Modifier.size(Dimens.imgSize),
-                    painter = painterResource(id = R.drawable.notification),
-                    contentDescription = null
-                )
-
             }
         }
     }
@@ -334,7 +422,8 @@ fun TaskHeaderRow(
     Row(
         modifier = Modifier
             .height(IntrinsicSize.Min)
-            .clickable { onExpandToggle() },
+            .clickable { onExpandToggle() }
+            .padding(bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
@@ -350,7 +439,7 @@ fun TaskHeaderRow(
         Text(
             task.title,
             color = TODOListTheme.colors.onTaskText,
-            fontFamily = OswaldFontFamily.Oswald,
+            fontFamily = OpenSansCondensed,
             fontWeight = FontWeight.Light,
             fontSize = Dimens.fontSmall,
             modifier = Modifier.weight(1f)
