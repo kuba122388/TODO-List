@@ -192,7 +192,7 @@ fun AddButtons(addButtonExpanded: Boolean, onToggle: () -> Unit) {
             Text(
                 modifier = Modifier.alpha(0f),
                 text = "Task",
-                fontSize = Dimens.fontTiny,
+                fontSize = Dimens.fontUnderBtn,
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Light
             )
@@ -219,7 +219,7 @@ fun AddButtons(addButtonExpanded: Boolean, onToggle: () -> Unit) {
             Text(
                 modifier = Modifier.alpha(0f),
                 text = "Category",
-                fontSize = Dimens.fontTiny,
+                fontSize = Dimens.fontUnderBtn,
                 fontFamily = OswaldFontFamily,
                 fontWeight = FontWeight.Light
             )
