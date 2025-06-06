@@ -113,7 +113,7 @@ fun TaskListScreen(
             itemsIndexed(
                 filteredTasks,
                 key = { index, task -> task.title + index }) { index, task ->
-                var selected by remember { mutableStateOf(false) }
+                var selected by remember { mutableStateOf(task.isDone) }
                 var expanded by remember { mutableStateOf(false) }
 
                 LaunchedEffect(expanded) {
@@ -122,12 +122,17 @@ fun TaskListScreen(
                     }
                 }
 
-                if (!showDoneTasks || !selected) TaskCard(
+                if (!showDoneTasks || !task.isDone) TaskCard(
                     task = task,
                     selected = selected,
                     expanded = expanded,
                     engHour = engHour,
-                    onSelectedToggle = { selected = !selected },
+                    categories = categoryList,
+                    onSelectedToggle = {
+                        selected = !selected;
+                        val newTask = task.copy(isDone = selected)
+                        viewModel.updateTask(newTask)
+                    },
                     onExpandedToggle = { expanded = !expanded }
                 )
             }
@@ -159,15 +164,14 @@ fun TaskListScreen(
             }
 
             if (showCategoryDialog) {
-                CategoryDialog(dismiss = { showCategoryDialog = false })
+                CategoryDialog(dismiss = { showCategoryDialog = false }, viewModel = viewModel)
             }
 
             if (showTaskDialog) {
                 TaskDialog(
                     dismiss = { showTaskDialog = false },
                     categoryList = categoryList,
-                    viewModel = viewModel,
-                    sharedPreferencesHelper.getFullHourFormat()
+                    viewModel = viewModel
                 )
             }
 

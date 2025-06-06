@@ -6,6 +6,7 @@ import com.example.todo_list.data.model.Task
 import com.example.todo_list.data.db.TaskRepository
 import com.example.todo_list.data.model.Category
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,12 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
     fun deleteCategory(category: Category) {
         viewModelScope.launch {
             repository.deleteCategory(category)
+            tasks.value
+                .filter { it.categoryId == category.id }
+                .forEach { taskWithCategory ->
+                    val updatedTask = taskWithCategory.copy(categoryId = -1)
+                    repository.updateTask(updatedTask)
+                }
         }
     }
 

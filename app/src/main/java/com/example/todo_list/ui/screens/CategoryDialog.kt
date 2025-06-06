@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,13 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.todo_list.R
+import com.example.todo_list.data.model.Category
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
+import com.example.todo_list.viewModel.TaskViewModel
 
 @Composable
-fun CategoryDialog(dismiss: () -> Unit) {
+fun CategoryDialog(dismiss: () -> Unit, viewModel: TaskViewModel) {
     var name by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf(Color.Gray) }
 
     Dialog(onDismissRequest = { dismiss() }) {
         Box(
@@ -91,7 +95,7 @@ fun CategoryDialog(dismiss: () -> Unit) {
                 Spacer(Modifier.size(Dimens.tinyPadding))
 
                 Row {
-                    ColorPickerBox()
+                    ColorPickerBox(selectedColor) { selectedColor = it }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End
@@ -103,6 +107,15 @@ fun CategoryDialog(dismiss: () -> Unit) {
                             .padding(
                                 horizontal = Dimens.largePadding, vertical = Dimens.tinyPadding
                             )
+                            .clickable {
+                                viewModel.addCategory(
+                                    Category(
+                                        title = name,
+                                        colorLong = selectedColor.value.toLong()
+                                    )
+                                )
+                                dismiss()
+                            }
                     ) {
                         Text(
                             "SAVE",
@@ -120,13 +133,13 @@ fun CategoryDialog(dismiss: () -> Unit) {
 
 @Composable
 fun FullColorPicker(
-    initialColor: Color = Color.Gray,
+    selectedColor: Color,
     onColorSelected: (Color) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var red by remember { mutableStateOf((initialColor.red * 255).toInt()) }
-    var green by remember { mutableStateOf((initialColor.green * 255).toInt()) }
-    var blue by remember { mutableStateOf((initialColor.blue * 255).toInt()) }
+    var red by remember { mutableIntStateOf((selectedColor.red * 255).toInt()) }
+    var green by remember { mutableIntStateOf((selectedColor.green * 255).toInt()) }
+    var blue by remember { mutableIntStateOf((selectedColor.blue * 255).toInt()) }
 
     val currentColor = Color(red, green, blue)
 
@@ -184,9 +197,11 @@ fun ColorPreviewBox(color: Color) {
 }
 
 @Composable
-fun ColorPickerBox() {
+fun ColorPickerBox(
+    selectedColor: Color,
+    onColorSelected: (Color) -> Unit
+) {
     var showPicker by remember { mutableStateOf(false) }
-    var selectedColor by remember { mutableStateOf(Color.Gray) }
 
     Box(
         modifier = Modifier
@@ -198,8 +213,11 @@ fun ColorPickerBox() {
 
     if (showPicker) {
         FullColorPicker(
-            initialColor = selectedColor,
-            onColorSelected = { selectedColor = it },
+            selectedColor = selectedColor,
+            onColorSelected = {
+                onColorSelected(it)
+                showPicker = false
+            },
             onDismiss = { showPicker = false }
         )
     }

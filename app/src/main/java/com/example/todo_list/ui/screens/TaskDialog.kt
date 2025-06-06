@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.toColor
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
@@ -60,15 +61,14 @@ import java.util.Locale
 fun TaskDialog(
     dismiss: () -> Unit,
     categoryList: List<Category>,
-    viewModel: TaskViewModel,
-    fullFormat: Boolean
+    viewModel: TaskViewModel
 ) {
     val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     var expanded by remember { mutableStateOf(false) }
-    var selectedCategoryText by remember { mutableStateOf("") }
+    var selectedCategoryText by remember { mutableStateOf("<None>") }
     var selectedCategory = remember { mutableStateOf<Category?>(null) }
 
     var notification by remember { mutableStateOf(false) }
@@ -219,7 +219,7 @@ fun TaskDialog(
                                             selectedCategory.value = category
                                             expanded = false
                                         },
-                                        modifier = Modifier.background(color = category.color)
+                                        modifier = Modifier.background(color = Color(category.colorLong))
                                     )
                                 }
                             }
@@ -353,19 +353,16 @@ fun TaskDialog(
                             .clickable {
                                 viewModel.addTask(
                                     Task(
+                                        isDone = false,
                                         title = title,
                                         description = description,
                                         creationDate = LocalDateTime.now(),
                                         destinationDate =
-                                        if (fullFormat) LocalDateTime.parse(
+                                        LocalDateTime.parse(
                                             dateTimeText,
-                                            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM")
-                                        ) else
-                                            LocalDateTime.parse(
-                                                dateTimeText,
-                                                DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")
-                                            ),
-                                        category = if(selectedCategoryText == "<None>") null else selectedCategory.value,
+                                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                        ),
+                                        categoryId = if (selectedCategoryText == "<None>") -1 else selectedCategory.value?.id,
                                         notification = notification,
                                         attachments = attachments
                                     )

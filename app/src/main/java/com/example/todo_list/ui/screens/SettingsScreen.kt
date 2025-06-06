@@ -65,16 +65,13 @@ fun SettingsScreen(
     }
 
     val categories by viewModel.categories.collectAsState()
+    var selectedCategory by remember { mutableStateOf("<None>") }
 
     var hideDoneTasks by remember { mutableStateOf(sharedPreferencesHelper.getHideDoneTask()) }
     var fullHour by remember { mutableStateOf(sharedPreferencesHelper.getFullHourFormat()) }
     var notificationTime by remember { mutableStateOf(sharedPreferencesHelper.getNotificationTime()) }
 
     var expanded by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf("<None>") }
-
-
-    val categoryList = remember { mutableStateListOf<Category>() }
 
 
     Column(
@@ -304,14 +301,14 @@ fun SettingsScreen(
                             }
                         )
 
-                        categoryList.forEach { category ->
+                        categories.forEach { category ->
                             DropdownMenuItem(
                                 text = { Text(text = category.title) },
                                 onClick = {
                                     selectedCategory = category.title
                                     expanded = false
                                 },
-                                modifier = Modifier.background(color = category.color)
+                                modifier = Modifier.background(color = Color(category.colorLong))
                             )
                         }
                     }
@@ -321,13 +318,9 @@ fun SettingsScreen(
                     modifier = Modifier
                         .size(30.dp)
                         .clickable {
-                            sampleTasks.forEach { task ->
-                                if (task.category != null && task.category!!.title == selectedCategory) {
-                                    //NOTE: task.category = null
-                                }
-                            }
-                            categoryList.remove(categoryList.find { it.title == selectedCategory }
-                            )
+                            categories
+                                .find { category -> category.title == selectedCategory }
+                                ?.let { viewModel.deleteCategory(it) }
                             selectedCategory = "<None>"
                         },
                     painter = painterResource(id = R.drawable.delete_red),
