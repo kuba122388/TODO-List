@@ -19,6 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -26,16 +30,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
+import com.example.todo_list.ui.screens.TaskDialog
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OpenSansCondensed
 import com.example.todo_list.ui.theme.TODOListTheme
+import com.example.todo_list.viewModel.TaskViewModel
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -45,6 +53,7 @@ fun TaskCard(
     selected: Boolean,
     expanded: Boolean,
     engHour: Boolean,
+    viewModel: TaskViewModel,
     onSelectedToggle: () -> Unit,
     onExpandedToggle: () -> Unit
 ) {
@@ -56,7 +65,7 @@ fun TaskCard(
                 .clip(RoundedCornerShape(Dimens.roundedSize))
                 .background(
                     if (task.categoryId != -1)
-                       Color(category!!.colorLong).copy(alpha = 0.8f)
+                        Color(category!!.colorLong).copy(alpha = 0.8f)
                     else TODOListTheme.colors.taskWOCategory
                 )
                 .padding(horizontal = Dimens.smallPadding, vertical = Dimens.smallPadding)
@@ -70,7 +79,7 @@ fun TaskCard(
                     expanded = expanded,
                     onSelectToggle = { onSelectedToggle() },
                     onExpandToggle = { onExpandedToggle() })
-                TaskContent(task, expanded, category)
+                TaskContent(task, expanded, category, viewModel, categories)
             }
         }
     }
@@ -199,7 +208,13 @@ fun TaskHeaderRow(
 
 
 @Composable
-fun TaskContent(task: Task, expanded: Boolean, category: Category?) {
+fun TaskContent(
+    task: Task,
+    expanded: Boolean,
+    category: Category?,
+    viewModel: TaskViewModel,
+    categories: List<Category>
+) {
     if (expanded) {
 
         Column(
@@ -246,7 +261,7 @@ fun TaskContent(task: Task, expanded: Boolean, category: Category?) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row { InsideTaskButtons() }
+            Row { InsideTaskButtons(task, viewModel, categories) }
             if (task.categoryId != -1) Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Dimens.roundedSize))
@@ -271,7 +286,8 @@ fun TaskContent(task: Task, expanded: Boolean, category: Category?) {
 }
 
 @Composable
-fun InsideTaskButtons() {
+fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<Category>) {
+    var showTask by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .width(80.dp)
@@ -281,7 +297,17 @@ fun InsideTaskButtons() {
                 horizontal = Dimens.smallPadding,
                 vertical = Dimens.tinyPadding
             )
+            .clickable {
+                showTask = !showTask
+            }
     ) {
+        if (showTask) {
+            TaskDialog(
+                dismiss = { showTask = !showTask },
+                categoryList = categoryList,
+                viewModel = viewModel
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -313,6 +339,9 @@ fun InsideTaskButtons() {
                 horizontal = Dimens.smallPadding,
                 vertical = Dimens.tinyPadding
             )
+            .clickable {
+                viewModel.deleteTask(task)
+            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

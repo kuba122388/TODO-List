@@ -128,6 +128,7 @@ fun TaskListScreen(
                     expanded = expanded,
                     engHour = engHour,
                     categories = categoryList,
+                    viewModel = viewModel,
                     onSelectedToggle = {
                         selected = !selected;
                         val newTask = task.copy(isDone = selected)
