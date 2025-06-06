@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.todo_list.R
+import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OpenSansCondensed
@@ -40,37 +41,44 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TaskCard(
     task: Task,
+    categories: List<Category>,
     selected: Boolean,
     expanded: Boolean,
+    engHour: Boolean,
     onSelectedToggle: () -> Unit,
     onExpandedToggle: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(Dimens.roundedSize))
-            .background(
-                if (task.category != null)
-                    task.category.Color.copy(alpha = 0.8f)
-                else TODOListTheme.colors.taskWOCategory
-            )
-            .padding(horizontal = Dimens.smallPadding, vertical = Dimens.smallPadding)
-    ) {
-        Column {
-            TopTaskInfo(task)
-            Spacer(modifier = Modifier.size(Dimens.tinyPadding))
-            TaskHeaderRow(
-                task = task,
-                selected = selected,
-                expanded = expanded,
-                onSelectToggle = { onSelectedToggle() },
-                onExpandToggle = { onExpandedToggle() })
-            TaskContent(task, expanded)
+    val category = categories.find { it.id == task.categoryId }
+
+    Column {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(Dimens.roundedSize))
+                .background(
+                    if (task.categoryId != -1)
+                       Color(category!!.colorLong).copy(alpha = 0.8f)
+                    else TODOListTheme.colors.taskWOCategory
+                )
+                .padding(horizontal = Dimens.smallPadding, vertical = Dimens.smallPadding)
+        ) {
+            Column {
+                TopTaskInfo(task, engHour)
+                Spacer(modifier = Modifier.size(Dimens.tinyPadding))
+                TaskHeaderRow(
+                    task = task,
+                    selected = selected,
+                    expanded = expanded,
+                    onSelectToggle = { onSelectedToggle() },
+                    onExpandToggle = { onExpandedToggle() })
+                TaskContent(task, expanded, category)
+            }
         }
     }
+    Spacer(Modifier.size(Dimens.spacingTasks))
 }
 
 @Composable
-fun TopTaskInfo(task: Task) {
+fun TopTaskInfo(task: Task, fullHour: Boolean) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Box {
             Row(
@@ -89,7 +97,8 @@ fun TopTaskInfo(task: Task) {
                     )
                     Spacer(modifier = Modifier.size(Dimens.tinyPadding))
                     Text(
-                        task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
+                        if (fullHour) task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM"))
+                        else task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
                         color = TODOListTheme.colors.onTaskText,
                         fontFamily = OpenSansCondensed,
                         fontWeight = FontWeight.Light
@@ -106,7 +115,8 @@ fun TopTaskInfo(task: Task) {
                     )
                     Spacer(modifier = Modifier.size(Dimens.tinyPadding))
                     Text(
-                        task.destinationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
+                        if (fullHour) task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM"))
+                        else task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
                         color = TODOListTheme.colors.onTaskText,
                         fontFamily = OpenSansCondensed,
                         fontWeight = FontWeight.Light
@@ -189,7 +199,7 @@ fun TaskHeaderRow(
 
 
 @Composable
-fun TaskContent(task: Task, expanded: Boolean) {
+fun TaskContent(task: Task, expanded: Boolean, category: Category?) {
     if (expanded) {
 
         Column(
@@ -219,7 +229,7 @@ fun TaskContent(task: Task, expanded: Boolean) {
                         contentDescription = null,
                     )
                     Text(
-                        attachment,
+                        attachment.toString(),
                         color = TODOListTheme.colors.onTaskText,
                         fontFamily = OpenSansCondensed,
                         fontWeight = FontWeight.Light,
@@ -237,13 +247,13 @@ fun TaskContent(task: Task, expanded: Boolean) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row { InsideTaskButtons() }
-            if (task.category != null) Box(
+            if (task.categoryId != -1) Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Dimens.roundedSize))
                     .background(
-                        task.category.Color
-                            .copy(alpha = 0.9f)
-                            .compositeOver(Color.Black.copy(alpha = 1f))
+                        if (task.categoryId != -1)
+                            Color(category!!.colorLong).copy(alpha = 0.8f)
+                        else TODOListTheme.colors.taskWOCategory
                     )
                     .padding(
                         horizontal = Dimens.mediumPadding,
@@ -251,7 +261,7 @@ fun TaskContent(task: Task, expanded: Boolean) {
                     )
             ) {
                 Text(
-                    task.category.Title,
+                    category!!.title,
                     color = TODOListTheme.colors.onTaskText,
                     fontFamily = OpenSansCondensed
                 )
@@ -311,9 +321,10 @@ fun InsideTaskButtons() {
         ) {
             Image(
                 modifier = Modifier.size(Dimens.imgSize),
-                painter = painterResource(id = R.drawable.edit),
+                painter = painterResource(id = R.drawable.delete_white),
                 contentDescription = null
             )
+
             Spacer(Modifier.size(Dimens.tinyPadding))
 
             Text(

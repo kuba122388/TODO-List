@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.toColor
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.ui.theme.Dimens
@@ -32,7 +33,7 @@ import com.example.todo_list.ui.theme.Dimens
 fun FilterDialog(
     categoryList: List<Category>,
     dismiss: () -> Unit,
-    changeCategory: (String) -> Unit
+    changeCategory: (Int) -> Unit
 ) {
     Dialog(onDismissRequest = { dismiss() }) {
         Box(
@@ -48,9 +49,8 @@ fun FilterDialog(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 TopBarPopUp(
-                    text = "Add Category",
+                    text = "Filter",
                     id = R.drawable.close,
                     action = { dismiss() }
                 )
@@ -66,15 +66,15 @@ fun FilterDialog(
                                 .height(40.dp)
                                 .clip(RoundedCornerShape(15.dp))
                                 .background(
-                                    category.Color.copy(alpha = 0.8f)
+                                    Color(category.colorLong).copy(alpha = 0.8f)
                                 )
                                 .clickable {
-                                    changeCategory(category.Title)
+                                    changeCategory(category.id)
                                     dismiss()
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = category.Title)
+                            Text(text = category.title)
                         }
                     }
                 }

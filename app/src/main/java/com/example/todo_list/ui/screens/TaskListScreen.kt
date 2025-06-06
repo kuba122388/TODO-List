@@ -1,7 +1,5 @@
 package com.example.todo_list.ui.screens
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,20 +20,20 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,87 +42,48 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
-import com.example.todo_list.data.model.Task
 import com.example.todo_list.navigation.Routes
+import com.example.todo_list.sharedPreferences.SharedPreferencesHelper
 import com.example.todo_list.ui.components.SearchModule
 import com.example.todo_list.ui.components.TaskCard
 import com.example.todo_list.ui.components.TopBar
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
-import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-import java.util.Calendar
-import java.util.Locale
+import com.example.todo_list.viewModel.TaskViewModel
 
 @Composable
-fun TaskListScreen(navController: NavController) {
+fun TaskListScreen(
+    navController: NavController,
+    sharedPreferencesHelper: SharedPreferencesHelper,
+    viewModel: TaskViewModel
+) {
+    val userName = sharedPreferencesHelper.getUserName()
+
     var searchText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
     val listState = rememberLazyListState()
 
-    var selectedCategory by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableIntStateOf(-1) }
     var addButtonExpanded by remember { mutableStateOf(false) }
 
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showTaskDialog by remember { mutableStateOf(false) }
 
-    val categoryList = remember { mutableStateListOf<Category>() }
+    val showDoneTasks = sharedPreferencesHelper.getHideDoneTask()
+    val engHour = sharedPreferencesHelper.getFullHourFormat()
 
-
-    val sampleTasks = listOf(
-        Task(
-            title = "Zrobić zakupy",
-            description = "Mleko, chleb, jajka",
-            creationDate = LocalDateTime.now(),
-            destinationDate = LocalDateTime.now().plusDays(1),
-            category = Category("Dom", Color(0xFF4CAF50)),
-            notification = true,
-            attachments = listOf()
-        ),
-        Task(
-            title = "Spotkanie projektowe",
-            description = "Omawiamy sprint 5asdasdsadsdasdaasdsdasdadsdsadasasdsdasdasda",
-            creationDate = LocalDateTime.now(),
-            destinationDate = LocalDateTime.now().plusDays(2).plusHours(5),
-            category = Category("Praca", Color(0xFF2196F3)),
-            notification = false,
-            attachments = listOf("sciezka/do/plik1.pdf")
-        ),
-        Task(
-            title = "Trening",
-            description = "Siłownia o 19:00",
-            creationDate = LocalDateTime.now(),
-            destinationDate = LocalDateTime.now().plusDays(1),
-            category = Category("Zdrowie", Color(0xFFFF5722)),
-            notification = true,
-            attachments = listOf("zdjecie1.jpg", "zdjecie2.jpg")
-        ),
-        Task(
-            title = "Wyjść na dwór",
-            description = "Nie siedź przy kompie",
-            creationDate = LocalDateTime.now(),
-            destinationDate = LocalDateTime.now().plusDays(1),
-            category = null,
-            notification = false,
-            attachments = listOf()
-        ),
-    )
-
-    sampleTasks.forEach { task ->
-        if (task.category != null && !categoryList.contains(task.category)) {
-            categoryList.add(task.category)
-        }
-    }
+    val sampleTasks by viewModel.tasks.collectAsState(initial = emptyList())
+    val categoryList by viewModel.categories.collectAsState(initial = emptyList())
 
     val filteredTasks =
         sampleTasks.filter { task ->
-            (selectedCategory.isEmpty() || task.category?.Title == selectedCategory) &&
+            (selectedCategory == -1 || task.categoryId == selectedCategory) &&
                     (searchText.isEmpty() || task.title.lowercase()
                         .contains(searchText.lowercase()))
-        }
+        }.sortedBy { it.destinationDate }
 
     Column(
         modifier = Modifier
@@ -137,7 +96,7 @@ fun TaskListScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         TopBar(
-            text = "Welcome, Jacob!",
+            text = "Welcome, $userName!",
             id = R.drawable.settings,
             navController = navController,
             destination = Routes.Settings.route
@@ -149,8 +108,7 @@ fun TaskListScreen(navController: NavController) {
 
         LazyColumn(
             modifier = Modifier.fillMaxHeight(0.82f),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(Dimens.spacingTasks)
+            state = listState
         ) {
             itemsIndexed(
                 filteredTasks,
@@ -164,10 +122,11 @@ fun TaskListScreen(navController: NavController) {
                     }
                 }
 
-                TaskCard(
+                if (!showDoneTasks || !selected) TaskCard(
                     task = task,
                     selected = selected,
                     expanded = expanded,
+                    engHour = engHour,
                     onSelectedToggle = { selected = !selected },
                     onExpandedToggle = { expanded = !expanded }
                 )
@@ -180,7 +139,7 @@ fun TaskListScreen(navController: NavController) {
         ) {
             FilterButtons(
                 selectedCategory,
-                clearFilter = { selectedCategory = "" },
+                clearFilter = { selectedCategory = -1 },
                 showFilterDialog = { showFilterDialog = true })
 
             Spacer(modifier = Modifier.size(Dimens.actionOptBtnSize))
@@ -204,61 +163,20 @@ fun TaskListScreen(navController: NavController) {
             }
 
             if (showTaskDialog) {
-                TaskDialog(dismiss = { showTaskDialog = false }, categoryList = categoryList)
+                TaskDialog(
+                    dismiss = { showTaskDialog = false },
+                    categoryList = categoryList,
+                    viewModel = viewModel,
+                    sharedPreferencesHelper.getFullHourFormat()
+                )
             }
 
         }
     }
 }
 
-
-
 @Composable
-fun DateTimePickerSample() {
-    val context = LocalContext.current
-    val calendar = remember { Calendar.getInstance() }
-
-    var dateTimeText by remember { mutableStateOf("Click here to set") }
-
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            calendar.set(Calendar.YEAR, year)
-            calendar.set(Calendar.MONTH, month)
-            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
-
-            TimePickerDialog(
-                context,
-                { _, hourOfDay, minute ->
-                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                    calendar.set(Calendar.MINUTE, minute)
-
-                    val formatted = SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm",
-                        Locale.getDefault()
-                    ).format(calendar.time)
-                    dateTimeText = formatted
-                },
-                calendar.get(Calendar.HOUR_OF_DAY),
-                calendar.get(Calendar.MINUTE),
-                true
-            ).show()
-        },
-        calendar.get(Calendar.YEAR),
-        calendar.get(Calendar.MONTH),
-        calendar.get(Calendar.DAY_OF_MONTH)
-    )
-
-    Text(text = dateTimeText, modifier = Modifier
-        .clickable {
-            datePickerDialog.show()
-        })
-
-}
-
-
-@Composable
-fun FilterButtons(filter: String, clearFilter: () -> Unit, showFilterDialog: () -> Unit) {
+fun FilterButtons(filter: Int, clearFilter: () -> Unit, showFilterDialog: () -> Unit) {
     ActionButton(
         modifier = Modifier.clickable {
             showFilterDialog()
@@ -267,7 +185,7 @@ fun FilterButtons(filter: String, clearFilter: () -> Unit, showFilterDialog: () 
         buttonSize = Dimens.actionBtnSize,
         imgSize = 24.dp
     )
-    if (filter.isNotEmpty()) ActionButton(
+    if (filter != -1) ActionButton(
         modifier = Modifier.clickable {
             clearFilter()
         },

@@ -1,6 +1,8 @@
 package com.example.todo_list.ui.screens
 
 import TopBarPopUp
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -43,21 +45,36 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
+import com.example.todo_list.data.model.Task
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
+import com.example.todo_list.viewModel.TaskViewModel
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
-fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
+fun TaskDialog(
+    dismiss: () -> Unit,
+    categoryList: List<Category>,
+    viewModel: TaskViewModel,
+    fullFormat: Boolean
+) {
     val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
     var expanded by remember { mutableStateOf(false) }
-    var selectedOptionText by remember { mutableStateOf("") }
+    var selectedCategoryText by remember { mutableStateOf("") }
+    var selectedCategory = remember { mutableStateOf<Category?>(null) }
+
     var notification by remember { mutableStateOf(false) }
 
-    var attachments = remember { mutableStateListOf<Uri>() }
+    val attachments = remember { mutableStateListOf<Uri>() }
+    var dateTimeText by remember { mutableStateOf("Click here to set") }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -150,7 +167,7 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
                                 horizontal = Dimens.smallPadding
                             )
                     ) {
-                        DateTimePickerSample()
+                        DateTimePickerSample { dateTimeText = it }
                     }
                 }
                 Spacer(Modifier.size(Dimens.smallPadding))
@@ -179,7 +196,7 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
                     ) {
                         Column {
                             Text(
-                                text = if (selectedOptionText == "") "<None>" else selectedOptionText
+                                text = if (selectedCategoryText == "") "<None>" else selectedCategoryText
                             )
                             DropdownMenu(
                                 expanded = expanded,
@@ -188,19 +205,21 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
                                 DropdownMenuItem(
                                     text = { Text("<None>") },
                                     onClick = {
-                                        selectedOptionText = ""
+                                        selectedCategoryText = ""
                                         expanded = false
+                                        selectedCategory.value = null
                                     }
                                 )
 
                                 categoryList.forEach { category ->
                                     DropdownMenuItem(
-                                        text = { Text(text = category.Title) },
+                                        text = { Text(text = category.title) },
                                         onClick = {
-                                            selectedOptionText = category.Title
+                                            selectedCategoryText = category.title
+                                            selectedCategory.value = category
                                             expanded = false
                                         },
-                                        modifier = Modifier.background(color = category.Color)
+                                        modifier = Modifier.background(color = category.color)
                                     )
                                 }
                             }
@@ -236,8 +255,6 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
                     }
                 }
                 Spacer(Modifier.size(Dimens.smallPadding))
-
-
 
 
                 Row {
@@ -333,6 +350,28 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
                                 horizontal = Dimens.largePadding,
                                 vertical = Dimens.tinyPadding
                             )
+                            .clickable {
+                                viewModel.addTask(
+                                    Task(
+                                        title = title,
+                                        description = description,
+                                        creationDate = LocalDateTime.now(),
+                                        destinationDate =
+                                        if (fullFormat) LocalDateTime.parse(
+                                            dateTimeText,
+                                            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM")
+                                        ) else
+                                            LocalDateTime.parse(
+                                                dateTimeText,
+                                                DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")
+                                            ),
+                                        category = if(selectedCategoryText == "<None>") null else selectedCategory.value,
+                                        notification = notification,
+                                        attachments = attachments
+                                    )
+                                )
+                                dismiss()
+                            }
                     ) {
                         Text(
                             "SAVE",
@@ -346,4 +385,49 @@ fun TaskDialog(dismiss: () -> Unit, categoryList: List<Category>) {
             }
         }
     }
+}
+
+
+@Composable
+fun DateTimePickerSample(onClick: (String) -> Unit) {
+    val context = LocalContext.current
+    val calendar = remember { Calendar.getInstance() }
+
+    var dateTimeText by remember { mutableStateOf("Click here to set") }
+
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            calendar.set(Calendar.YEAR, year)
+            calendar.set(Calendar.MONTH, month)
+            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+
+            TimePickerDialog(
+                context,
+                { _, hourOfDay, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    calendar.set(Calendar.MINUTE, minute)
+
+                    val formatted = SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm",
+                        Locale.getDefault()
+                    ).format(calendar.time)
+                    dateTimeText = formatted
+                    onClick(dateTimeText)
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                true
+            ).show()
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+
+    Text(text = dateTimeText, modifier = Modifier
+        .clickable {
+            datePickerDialog.show()
+        })
+
 }
