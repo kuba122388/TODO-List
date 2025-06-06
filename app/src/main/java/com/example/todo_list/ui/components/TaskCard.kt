@@ -1,5 +1,8 @@
 package com.example.todo_list.ui.components
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -215,8 +218,9 @@ fun TaskContent(
     viewModel: TaskViewModel,
     categories: List<Category>
 ) {
-    if (expanded) {
+    val context = LocalContext.current
 
+    if (expanded) {
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.65f)
@@ -245,6 +249,28 @@ fun TaskContent(
                     )
                     Text(
                         attachment.toString(),
+                        modifier = Modifier.clickable {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(
+                                    attachment,
+                                    context.contentResolver.getType(attachment)
+                                )
+                                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            }
+
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: ActivityNotFoundException) {
+                                Toast
+                                    .makeText(
+                                        context,
+                                        "Brak aplikacji do otwarcia tego pliku",
+                                        Toast.LENGTH_SHORT
+                                    )
+                                    .show()
+                            }
+                        },
+
                         color = TODOListTheme.colors.onTaskText,
                         fontFamily = OpenSansCondensed,
                         fontWeight = FontWeight.Light,
