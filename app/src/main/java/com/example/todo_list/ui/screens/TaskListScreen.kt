@@ -1,5 +1,6 @@
 package com.example.todo_list.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,7 +42,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.todo_list.R
-import com.example.todo_list.data.model.Category
 import com.example.todo_list.navigation.Routes
 import com.example.todo_list.sharedPreferences.SharedPreferencesHelper
 import com.example.todo_list.ui.components.SearchModule
@@ -56,7 +56,8 @@ import com.example.todo_list.viewModel.TaskViewModel
 fun TaskListScreen(
     navController: NavController,
     sharedPreferencesHelper: SharedPreferencesHelper,
-    viewModel: TaskViewModel
+    viewModel: TaskViewModel,
+    startTaskId: Int
 ) {
     val userName = sharedPreferencesHelper.getUserName()
 
@@ -122,7 +123,9 @@ fun TaskListScreen(
                 filteredTasks,
                 key = { index, task -> task.title + index }) { index, task ->
                 var selected by remember { mutableStateOf(task.isDone) }
-                var expanded by remember { mutableStateOf(false) }
+                var expanded by remember {
+                    mutableStateOf(task.id == startTaskId)
+                }
 
                 LaunchedEffect(expanded) {
                     if (expanded) {
@@ -137,6 +140,7 @@ fun TaskListScreen(
                     engHour = engHour,
                     categories = categoryList,
                     viewModel = viewModel,
+                    sharedPreferences = sharedPreferencesHelper,
                     onSelectedToggle = {
                         selected = !selected;
                         val newTask = task.copy(isDone = selected)
@@ -180,7 +184,8 @@ fun TaskListScreen(
                 TaskDialog(
                     dismiss = { showTaskDialog = false },
                     categoryList = categoryList,
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    sharedPreferencesHelper = sharedPreferencesHelper
                 )
             }
 

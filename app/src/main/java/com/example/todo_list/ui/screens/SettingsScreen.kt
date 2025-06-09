@@ -233,7 +233,7 @@ fun SettingsScreen(
                     onValueChange = {
                         notificationTime = it.filter { c -> c.isDigit() }
                         if (notificationTime == "") {
-                            notificationTime = "1"
+                            notificationTime = "0"
                             mutableStateOf(
                                 sharedPreferencesHelper.setNotificationTime(
                                     notificationTime

@@ -1,5 +1,6 @@
 package com.example
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,7 +21,7 @@ import com.example.todo_list.viewModel.TaskViewModel
 import com.example.todo_list.viewModel.TaskViewModelFactory
 
 @Composable
-fun App() {
+fun App(startTaskId: Int) {
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context = context)
     val repo = MyRepository(taskDao = db.taskDao(), categoryDao = db.categoryDao())
@@ -47,7 +48,7 @@ fun App() {
                         bottom = Dimens.mediumPadding
                     )
             ) {
-                NavGraph(navController = navController, viewModel = viewModel)
+                NavGraph(navController = navController, viewModel = viewModel, startTaskId = startTaskId)
             }
         }
     }

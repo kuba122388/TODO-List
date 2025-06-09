@@ -42,6 +42,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
+import com.example.todo_list.notifications.NotificationScheduler
+import com.example.todo_list.sharedPreferences.SharedPreferencesHelper
 import com.example.todo_list.ui.screens.TaskDialog
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OpenSansCondensed
@@ -58,6 +60,7 @@ fun TaskCard(
     expanded: Boolean,
     engHour: Boolean,
     viewModel: TaskViewModel,
+    sharedPreferences: SharedPreferencesHelper,
     onSelectedToggle: () -> Unit,
     onExpandedToggle: () -> Unit
 ) {
@@ -83,7 +86,14 @@ fun TaskCard(
                     expanded = expanded,
                     onSelectToggle = { onSelectedToggle() },
                     onExpandToggle = { onExpandedToggle() })
-                TaskContent(task, expanded, category, viewModel, categories)
+                TaskContent(
+                    task,
+                    expanded,
+                    category,
+                    viewModel,
+                    categories,
+                    sharedPreferences
+                )
             }
         }
     }
@@ -217,7 +227,8 @@ fun TaskContent(
     expanded: Boolean,
     category: Category?,
     viewModel: TaskViewModel,
-    categories: List<Category>
+    categories: List<Category>,
+    sharedPreferences: SharedPreferencesHelper
 ) {
     val context = LocalContext.current
 
@@ -288,7 +299,14 @@ fun TaskContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row { InsideTaskButtons(task, viewModel, categories) }
+            Row {
+                InsideTaskButtons(
+                    task,
+                    viewModel,
+                    categories,
+                    sharedPreferences = sharedPreferences
+                )
+            }
             if (task.categoryId != -1) Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Dimens.roundedSize))
@@ -313,7 +331,12 @@ fun TaskContent(
 }
 
 @Composable
-fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<Category>) {
+fun InsideTaskButtons(
+    task: Task,
+    viewModel: TaskViewModel,
+    categoryList: List<Category>,
+    sharedPreferences: SharedPreferencesHelper
+) {
     var showTask by remember { mutableStateOf(false) }
     val context = LocalContext.current
     Box(
@@ -335,7 +358,8 @@ fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<C
                 dismiss = { showTask = !showTask },
                 categoryList = categoryList,
                 viewModel = viewModel,
-                task = task
+                task = task,
+                sharedPreferencesHelper = sharedPreferences
             )
         }
         Row(
@@ -364,12 +388,14 @@ fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<C
         modifier = Modifier
             .clickable {
                 task.attachments.forEach { uri ->
-                    val file = File(context.filesDir, "${uri.lastPathSegment?.substringAfterLast("/")}")
+                    val file =
+                        File(context.filesDir, "${uri.lastPathSegment?.substringAfterLast("/")}")
                     if (file.exists()) {
                         file.delete()
                     }
                 }
                 viewModel.deleteTask(task)
+                NotificationScheduler(context, sharedPreferences).cancelNotification(task)
                 Toast
                     .makeText(context, "Task deleted successfully!", Toast.LENGTH_SHORT)
                     .show()

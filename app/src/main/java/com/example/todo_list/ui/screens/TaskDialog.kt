@@ -6,6 +6,7 @@ import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -50,6 +50,8 @@ import androidx.core.content.FileProvider
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
+import com.example.todo_list.notifications.NotificationScheduler
+import com.example.todo_list.sharedPreferences.SharedPreferencesHelper
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
@@ -67,8 +69,10 @@ fun TaskDialog(
     dismiss: () -> Unit,
     categoryList: List<Category>,
     viewModel: TaskViewModel,
-    task: Task? = null
+    task: Task? = null,
+    sharedPreferencesHelper: SharedPreferencesHelper
 ) {
+
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
 
     val context = LocalContext.current
@@ -443,22 +447,29 @@ fun TaskDialog(
                                     return@clickable
                                 }
                                 if (task == null) {
-                                    viewModel.addTask(
-                                        Task(
-                                            isDone = false,
-                                            title = title,
-                                            description = description,
-                                            creationDate = LocalDateTime.now(),
-                                            destinationDate =
-                                            LocalDateTime.parse(
-                                                dateTimeText,
-                                                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                                            ),
-                                            categoryId = if (selectedCategoryText == "") -1 else selectedCategory?.id,
-                                            notification = notification,
-                                            attachments = attachments
-                                        )
+                                    val newTask = Task(
+                                        isDone = false,
+                                        title = title,
+                                        description = description,
+                                        creationDate = LocalDateTime.now(),
+                                        destinationDate =
+                                        LocalDateTime.parse(
+                                            dateTimeText,
+                                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                        ),
+                                        categoryId = if (selectedCategoryText == "") -1 else selectedCategory?.id,
+                                        notification = notification,
+                                        attachments = attachments
                                     )
+                                    viewModel.addTask(newTask) { generatedId ->
+                                        val taskWithId = newTask.copy(id = generatedId.toInt())
+                                        if (notification) {
+                                            NotificationScheduler(context, sharedPreferencesHelper).scheduleNotification(taskWithId)
+                                        } else{
+                                            NotificationScheduler(context, sharedPreferencesHelper).cancelNotification(taskWithId)
+                                        }
+                                        Log.d("My debug", "${taskWithId.id}")
+                                    }
                                     Toast
                                         .makeText(
                                             context,
@@ -468,6 +479,7 @@ fun TaskDialog(
                                         .show()
                                 } else {
                                     val updatedTask = task.copy(
+                                        id = task.id,
                                         title = title,
                                         description = description,
                                         destinationDate = LocalDateTime.parse(
@@ -479,6 +491,13 @@ fun TaskDialog(
                                         attachments = attachments
                                     )
                                     viewModel.updateTask(updatedTask)
+                                    Log.d("My debug", "${updatedTask.id}")
+                                    if (notification) {
+                                        NotificationScheduler(context, sharedPreferencesHelper).cancelNotification(updatedTask)
+                                        NotificationScheduler(context, sharedPreferencesHelper).scheduleNotification(updatedTask)
+                                    } else{
+                                        NotificationScheduler(context, sharedPreferencesHelper).cancelNotification(updatedTask)
+                                    }
                                     Toast
                                         .makeText(
                                             context,
@@ -486,6 +505,7 @@ fun TaskDialog(
                                             Toast.LENGTH_SHORT
                                         )
                                         .show()
+
                                 }
                                 dismiss()
                             }

@@ -11,7 +11,9 @@ class MyRepository(
 
     fun getAllTasks(): Flow<List<Task>> = taskDao.getAllTasks()
 
-    suspend fun addTask(task: Task) = taskDao.insert(task)
+    suspend fun addTask(task: Task): Long {
+        return taskDao.insert(task)
+    }
 
     suspend fun deleteTask(task: Task) = taskDao.delete(task)
 

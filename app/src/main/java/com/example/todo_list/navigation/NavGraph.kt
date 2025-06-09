@@ -11,7 +11,7 @@ import com.example.todo_list.ui.screens.TaskListScreen
 import com.example.todo_list.viewModel.TaskViewModel
 
 @Composable
-fun NavGraph(navController: NavHostController, viewModel: TaskViewModel) {
+fun NavGraph(navController: NavHostController, viewModel: TaskViewModel, startTaskId: Int) {
     val context = LocalContext.current
     val sharedPreferencesHelper = SharedPreferencesHelper(context);
 
@@ -20,7 +20,12 @@ fun NavGraph(navController: NavHostController, viewModel: TaskViewModel) {
         startDestination = Routes.TaskList.route
     ) {
         composable(route = Routes.TaskList.route) {
-            TaskListScreen(navController = navController, sharedPreferencesHelper, viewModel)
+            TaskListScreen(
+                navController = navController,
+                sharedPreferencesHelper = sharedPreferencesHelper,
+                viewModel = viewModel,
+                startTaskId = startTaskId
+            )
         }
         composable(route = Routes.Settings.route) {
             SettingsScreen(navController = navController, sharedPreferencesHelper, viewModel)

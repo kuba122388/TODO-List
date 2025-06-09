@@ -18,9 +18,10 @@ class TaskViewModel(private val repository: MyRepository) : ViewModel() {
     val categories = repository.getAllCategories()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun addTask(task: Task) {
+    fun addTask(task: Task, onInserted: (Long) -> Unit) {
         viewModelScope.launch {
-            repository.addTask(task)
+            val id = repository.addTask(task)
+            onInserted(id)
         }
     }
 
