@@ -3,14 +3,14 @@ package com.example.todo_list.viewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.todo_list.data.model.Task
-import com.example.todo_list.data.db.TaskRepository
+import com.example.todo_list.data.db.MyRepository
 import com.example.todo_list.data.model.Category
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.forEach
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
+class TaskViewModel(private val repository: MyRepository) : ViewModel() {
 
     val tasks = repository.getAllTasks()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -59,4 +59,14 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
             repository.updateCategory(category)
         }
     }
+
+    suspend fun getCategoryById(id: Int?): Category? {
+        return if (id == null) null else repository.getCategoryById(id).firstOrNull()
+    }
+
+    suspend fun getCategoryByName(name: String): Category? {
+        return  repository.getCategoryByName(name).firstOrNull()
+    }
+
+
 }

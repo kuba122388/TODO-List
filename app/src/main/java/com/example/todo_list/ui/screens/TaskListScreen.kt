@@ -106,6 +106,14 @@ fun TaskListScreen(
 
         Spacer(Modifier.size(Dimens.mediumPadding))
 
+        if (filteredTasks.isEmpty()) Text(
+            text = "No tasks found",
+            fontFamily = OswaldFontFamily,
+            fontSize = Dimens.fontTiny,
+            fontWeight = FontWeight.Light
+        )
+
+
         LazyColumn(
             modifier = Modifier.fillMaxHeight(0.82f),
             state = listState

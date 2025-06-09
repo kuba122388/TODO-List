@@ -4,7 +4,7 @@ import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
 import kotlinx.coroutines.flow.Flow
 
-class TaskRepository(
+class MyRepository(
     private val taskDao: TaskDao,
     private val categoryDao: CategoryDao
 ) {
@@ -24,4 +24,8 @@ class TaskRepository(
     suspend fun deleteCategory(category: Category) = categoryDao.delete(category)
 
     suspend fun updateCategory(category: Category) = categoryDao.update(category)
+
+    fun getCategoryById(id: Int) = categoryDao.getCategoryById(id)
+
+    fun getCategoryByName(categoryName: String) = categoryDao.getCategoryByName(categoryName)
 }

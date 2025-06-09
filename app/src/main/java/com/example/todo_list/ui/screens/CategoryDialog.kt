@@ -2,6 +2,7 @@ package com.example.todo_list.ui.screens
 
 import TopBarPopUp
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,8 +46,16 @@ import com.example.todo_list.viewModel.TaskViewModel
 
 @Composable
 fun CategoryDialog(dismiss: () -> Unit, viewModel: TaskViewModel) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var selectedColor by remember { mutableStateOf(Color.Gray) }
+
+    var doesExist by remember { mutableStateOf(false) }
+
+    LaunchedEffect(name) {
+        doesExist = viewModel.getCategoryByName(name) != null
+    }
+
 
     Dialog(onDismissRequest = { dismiss() }) {
         Box(
@@ -104,20 +115,44 @@ fun CategoryDialog(dismiss: () -> Unit, viewModel: TaskViewModel) {
                 ) {
                     Box(
                         modifier = Modifier
+                            .clickable {
+                                if (name.isEmpty()) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Category name should not be empty!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                    return@clickable
+                                }
+                                if (doesExist) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "This category already exists!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                    return@clickable
+                                }
+
+                                viewModel.addCategory(
+                                    Category(
+                                        title = name,
+                                        colorLong = selectedColor
+                                            .toArgb()
+                                            .toLong()
+                                    )
+                                )
+                                dismiss()
+                            }
                             .clip(RoundedCornerShape(10.dp))
                             .background(color = TODOListTheme.colors.saveButton)
                             .padding(
                                 horizontal = Dimens.largePadding, vertical = Dimens.tinyPadding
                             )
-                            .clickable {
-                                viewModel.addCategory(
-                                    Category(
-                                        title = name,
-                                        colorLong = selectedColor.toArgb().toLong()
-                                    )
-                                )
-                                dismiss()
-                            }
+
                     ) {
                         Text(
                             "SAVE",

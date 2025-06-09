@@ -6,6 +6,7 @@ import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +28,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -43,7 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.core.graphics.toColor
+import androidx.core.content.FileProvider
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.data.model.Task
@@ -51,6 +54,8 @@ import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
 import com.example.todo_list.viewModel.TaskViewModel
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -61,28 +66,72 @@ import java.util.Locale
 fun TaskDialog(
     dismiss: () -> Unit,
     categoryList: List<Category>,
-    viewModel: TaskViewModel
+    viewModel: TaskViewModel,
+    task: Task? = null
 ) {
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+
     val context = LocalContext.current
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(task?.title ?: "") }
+    var description by remember { mutableStateOf(task?.description ?: "") }
 
     var expanded by remember { mutableStateOf(false) }
-    var selectedCategoryText by remember { mutableStateOf("<None>") }
-    var selectedCategory = remember { mutableStateOf<Category?>(null) }
 
-    var notification by remember { mutableStateOf(false) }
+    var notification by remember { mutableStateOf(task?.notification ?: false) }
 
     val attachments = remember { mutableStateListOf<Uri>() }
-    var dateTimeText by remember { mutableStateOf("Click here to set") }
+
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+    val dateTimePlaceholder =
+        task?.destinationDate?.format(formatter) ?: "Click here to set"
+    var dateTimeText by remember { mutableStateOf(dateTimePlaceholder) }
+
+    LaunchedEffect(task?.categoryId) {
+        task?.categoryId?.let { categoryId ->
+            val category = viewModel.getCategoryById(categoryId)
+            selectedCategory = category
+        }
+        task?.attachments?.forEach { uri -> attachments.add(uri) }
+    }
+
+    var selectedCategoryText = selectedCategory?.title ?: ""
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            attachments.add(it)
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val mimeType = context.contentResolver.getType(uri)
+                val extension = MimeTypeMap.getSingleton()
+                    .getExtensionFromMimeType(mimeType) ?: "bin"
+
+                val fileName =
+                    "${uri.lastPathSegment?.substringAfterLast("/")}_${System.currentTimeMillis()}.$extension"
+                val outputFile = File(context.filesDir, fileName)
+
+                inputStream?.use { input ->
+                    FileOutputStream(outputFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val localUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    outputFile
+                )
+
+                attachments.add(localUri)
+
+            } catch (e: Exception) {
+                Toast.makeText(context, "Błąd podczas kopiowania załącznika", Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
     }
+
+
 
     Dialog(onDismissRequest = { dismiss() }) {
         Box(
@@ -96,9 +145,17 @@ fun TaskDialog(
         ) {
             Column {
                 TopBarPopUp(
-                    text = "Add Task",
+                    text = if (task != null) "Edit Task" else "Add Task",
                     id = R.drawable.close,
-                    action = { dismiss() }
+                    action = {
+                        attachments.forEach { uri ->
+                            val file = File(context.filesDir, "${uri.lastPathSegment?.substringAfterLast("/")}")
+                            if (file.exists()) {
+                                file.delete()
+                            }
+                        }
+                        dismiss()
+                    }
                 )
 
                 Spacer(Modifier.size(Dimens.smallPadding))
@@ -167,7 +224,7 @@ fun TaskDialog(
                                 horizontal = Dimens.smallPadding
                             )
                     ) {
-                        DateTimePickerSample { dateTimeText = it }
+                        DateTimePickerSample({ dateTimeText = it }, text = dateTimeText)
                     }
                 }
                 Spacer(Modifier.size(Dimens.smallPadding))
@@ -207,7 +264,7 @@ fun TaskDialog(
                                     onClick = {
                                         selectedCategoryText = ""
                                         expanded = false
-                                        selectedCategory.value = null
+                                        selectedCategory = null
                                     }
                                 )
 
@@ -216,7 +273,7 @@ fun TaskDialog(
                                         text = { Text(text = category.title) },
                                         onClick = {
                                             selectedCategoryText = category.title
-                                            selectedCategory.value = category
+                                            selectedCategory = category
                                             expanded = false
                                         },
                                         modifier = Modifier.background(color = Color(category.colorLong))
@@ -282,19 +339,39 @@ fun TaskDialog(
                             modifier = Modifier
                                 .size(20.dp)
                                 .clickable {
+                                    val file = File(context.filesDir, "${uri.lastPathSegment?.substringAfterLast("/")}")
+                                    if (file.exists()) {
+                                        file.delete()
+                                    }
                                     attachments.remove(uri)
                                 },
                             painter = painterResource(id = R.drawable.delete_red),
                             contentDescription = null
                         )
 
-                        Text(uri.path!!)
+                        Text(
+                            text = uri.lastPathSegment?.substringAfterLast("/")!!,
+                            modifier = Modifier.weight(1f)
+                        )
                         Image(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(25.dp)
                                 .clickable {
+                                    val fileName =
+                                        "${uri.lastPathSegment?.substringAfterLast("/")}"
+                                    val outputFile = File(context.filesDir, fileName)
+
+                                    val localUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        outputFile
+                                    )
+
                                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        setDataAndType(uri, context.contentResolver.getType(uri))
+                                        setDataAndType(
+                                            localUri,
+                                            context.contentResolver.getType(localUri)
+                                        )
                                         flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                                     }
 
@@ -344,31 +421,81 @@ fun TaskDialog(
                 ) {
                     Box(
                         modifier = Modifier
+                            .clickable {
+                                if (title.isEmpty()) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Title of the task cannot be empty!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                    return@clickable
+                                }
+                                if (dateTimeText == dateTimePlaceholder && task == null) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "You must set execution time!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                    return@clickable
+                                }
+                                if (task == null) {
+                                    viewModel.addTask(
+                                        Task(
+                                            isDone = false,
+                                            title = title,
+                                            description = description,
+                                            creationDate = LocalDateTime.now(),
+                                            destinationDate =
+                                            LocalDateTime.parse(
+                                                dateTimeText,
+                                                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                            ),
+                                            categoryId = if (selectedCategoryText == "") -1 else selectedCategory?.id,
+                                            notification = notification,
+                                            attachments = attachments
+                                        )
+                                    )
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Task added successfully!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                } else {
+                                    val updatedTask = task.copy(
+                                        title = title,
+                                        description = description,
+                                        destinationDate = LocalDateTime.parse(
+                                            dateTimeText,
+                                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                        ),
+                                        categoryId = if (selectedCategoryText == "") -1 else selectedCategory?.id,
+                                        notification = notification,
+                                        attachments = attachments
+                                    )
+                                    viewModel.updateTask(updatedTask)
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Task edited successfully!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                }
+                                dismiss()
+                            }
                             .clip(RoundedCornerShape(10.dp))
                             .background(color = TODOListTheme.colors.saveButton)
                             .padding(
                                 horizontal = Dimens.largePadding,
                                 vertical = Dimens.tinyPadding
                             )
-                            .clickable {
-                                viewModel.addTask(
-                                    Task(
-                                        isDone = false,
-                                        title = title,
-                                        description = description,
-                                        creationDate = LocalDateTime.now(),
-                                        destinationDate =
-                                        LocalDateTime.parse(
-                                            dateTimeText,
-                                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                                        ),
-                                        categoryId = if (selectedCategoryText == "<None>") -1 else selectedCategory.value?.id,
-                                        notification = notification,
-                                        attachments = attachments
-                                    )
-                                )
-                                dismiss()
-                            }
+
                     ) {
                         Text(
                             "SAVE",
@@ -386,11 +513,11 @@ fun TaskDialog(
 
 
 @Composable
-fun DateTimePickerSample(onClick: (String) -> Unit) {
+fun DateTimePickerSample(onClick: (String) -> Unit, text: String) {
     val context = LocalContext.current
     val calendar = remember { Calendar.getInstance() }
 
-    var dateTimeText by remember { mutableStateOf("Click here to set") }
+    var dateTimeText by remember { mutableStateOf(text) }
 
     val datePickerDialog = DatePickerDialog(
         context,

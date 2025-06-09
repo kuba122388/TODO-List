@@ -1,5 +1,6 @@
 package com.example.todo_list.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -40,15 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.todo_list.R
-import com.example.todo_list.data.model.Category
-import com.example.todo_list.data.model.Task
 import com.example.todo_list.sharedPreferences.SharedPreferencesHelper
 import com.example.todo_list.ui.components.TopBar
 import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OswaldFontFamily
 import com.example.todo_list.ui.theme.TODOListTheme
 import com.example.todo_list.viewModel.TaskViewModel
-import java.time.LocalDateTime
 
 @Composable
 fun SettingsScreen(
@@ -57,6 +56,7 @@ fun SettingsScreen(
     viewModel: TaskViewModel
 ) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     var name by remember {
         mutableStateOf(
@@ -277,6 +277,7 @@ fun SettingsScreen(
                 Spacer(Modifier.size(Dimens.smallPadding))
                 Box(
                     modifier = Modifier
+                        .clickable { expanded = !expanded }
                         .clip(RoundedCornerShape(5.dp))
                         .background(TODOListTheme.colors.controlBackground)
                         .weight(0.9f)
@@ -284,7 +285,7 @@ fun SettingsScreen(
                             vertical = Dimens.smallPadding,
                             horizontal = Dimens.smallPadding
                         )
-                        .clickable { expanded = !expanded }
+
                 ) {
                     Text(
                         text = if (selectedCategory == "") "<None>" else selectedCategory
@@ -321,6 +322,13 @@ fun SettingsScreen(
                             categories
                                 .find { category -> category.title == selectedCategory }
                                 ?.let { viewModel.deleteCategory(it) }
+                            if (selectedCategory != "<None>") Toast
+                                .makeText(
+                                    context,
+                                    "Category $selectedCategory deleted successfully",
+                                    Toast.LENGTH_SHORT
+                                )
+                                .show()
                             selectedCategory = "<None>"
                         },
                     painter = painterResource(id = R.drawable.delete_red),

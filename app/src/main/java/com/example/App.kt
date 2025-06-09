@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.todo_list.data.db.AppDatabase
-import com.example.todo_list.data.db.TaskRepository
+import com.example.todo_list.data.db.MyRepository
 import com.example.todo_list.ui.theme.TODOListTheme
 import com.example.todo_list.ui.theme.Theme
 import com.example.todo_list.navigation.NavGraph
@@ -23,7 +23,7 @@ import com.example.todo_list.viewModel.TaskViewModelFactory
 fun App() {
     val context = LocalContext.current
     val db = AppDatabase.getDatabase(context = context)
-    val repo = TaskRepository(taskDao = db.taskDao(), categoryDao = db.categoryDao())
+    val repo = MyRepository(taskDao = db.taskDao(), categoryDao = db.categoryDao())
 
     val viewModel: TaskViewModel = viewModel(
         factory = TaskViewModelFactory(repo)

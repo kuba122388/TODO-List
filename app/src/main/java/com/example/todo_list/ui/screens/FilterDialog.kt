@@ -28,6 +28,7 @@ import androidx.core.graphics.toColor
 import com.example.todo_list.R
 import com.example.todo_list.data.model.Category
 import com.example.todo_list.ui.theme.Dimens
+import com.example.todo_list.ui.theme.OswaldFontFamily
 
 @Composable
 fun FilterDialog(
@@ -55,6 +56,7 @@ fun FilterDialog(
                     action = { dismiss() }
                 )
                 Spacer(Modifier.size(Dimens.mediumPadding))
+                if(categoryList.isEmpty()) Text(text = "No categories found", fontFamily = OswaldFontFamily, fontSize = Dimens.fontSmall)
                 LazyColumn(
                     modifier = Modifier.sizeIn(maxHeight = 400.dp),
                     verticalArrangement = Arrangement.spacedBy(5.dp)

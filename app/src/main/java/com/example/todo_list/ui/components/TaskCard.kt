@@ -47,6 +47,7 @@ import com.example.todo_list.ui.theme.Dimens
 import com.example.todo_list.ui.theme.OpenSansCondensed
 import com.example.todo_list.ui.theme.TODOListTheme
 import com.example.todo_list.viewModel.TaskViewModel
+import java.io.File
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -127,8 +128,8 @@ fun TopTaskInfo(task: Task, fullHour: Boolean) {
                     )
                     Spacer(modifier = Modifier.size(Dimens.tinyPadding))
                     Text(
-                        if (fullHour) task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM"))
-                        else task.creationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
+                        if (fullHour) task.destinationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:MM"))
+                        else task.destinationDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy h:mma")),
                         color = TODOListTheme.colors.onTaskText,
                         fontFamily = OpenSansCondensed,
                         fontWeight = FontWeight.Light
@@ -248,7 +249,7 @@ fun TaskContent(
                         contentDescription = null,
                     )
                     Text(
-                        attachment.toString(),
+                        attachment.lastPathSegment?.substringAfterLast("/")!!,
                         modifier = Modifier.clickable {
                             val intent = Intent(Intent.ACTION_VIEW).apply {
                                 setDataAndType(
@@ -314,8 +315,12 @@ fun TaskContent(
 @Composable
 fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<Category>) {
     var showTask by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     Box(
         modifier = Modifier
+            .clickable {
+                showTask = !showTask
+            }
             .width(80.dp)
             .clip(RoundedCornerShape(Dimens.roundedSize))
             .background(TODOListTheme.colors.taskButtons)
@@ -323,15 +328,14 @@ fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<C
                 horizontal = Dimens.smallPadding,
                 vertical = Dimens.tinyPadding
             )
-            .clickable {
-                showTask = !showTask
-            }
+
     ) {
         if (showTask) {
             TaskDialog(
                 dismiss = { showTask = !showTask },
                 categoryList = categoryList,
-                viewModel = viewModel
+                viewModel = viewModel,
+                task = task
             )
         }
         Row(
@@ -358,6 +362,18 @@ fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<C
     Spacer(modifier = Modifier.size(10.dp))
     Box(
         modifier = Modifier
+            .clickable {
+                task.attachments.forEach { uri ->
+                    val file = File(context.filesDir, "${uri.lastPathSegment?.substringAfterLast("/")}")
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
+                viewModel.deleteTask(task)
+                Toast
+                    .makeText(context, "Task deleted successfully!", Toast.LENGTH_SHORT)
+                    .show()
+            }
             .width(80.dp)
             .clip(RoundedCornerShape(Dimens.roundedSize))
             .background(TODOListTheme.colors.taskButtons)
@@ -365,9 +381,6 @@ fun InsideTaskButtons(task: Task, viewModel: TaskViewModel, categoryList: List<C
                 horizontal = Dimens.smallPadding,
                 vertical = Dimens.tinyPadding
             )
-            .clickable {
-                viewModel.deleteTask(task)
-            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
